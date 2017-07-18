@@ -17,6 +17,13 @@ args = vars(ap.parse_args())
 # list of tracked points
 greenLower = (0, 20, 20)
 greenUpper = (25, 250, 250)
+
+Postit_PinkL = (179, 87, 255)
+Postit_PinkU = (31, 255, 159)
+
+targetLower = Postit_PinkL
+targetHigher = Postit_PinkU
+
 pts = deque(maxlen=args["buffer"])
  
 # if a video path was not supplied, grab the reference
@@ -46,7 +53,7 @@ while True:
 	# construct a mask for the color "green", then perform
 	# a series of dilations and erosions to remove any small
 	# blobs left in the mask
-	mask = cv2.inRange(hsv, greenLower, greenUpper)
+	mask = cv2.inRange(hsv, targetLower, targetHigher)
 	mask = cv2.erode(mask, None, iterations=2)
 	mask = cv2.dilate(mask, None, iterations=2)
 
