@@ -5,6 +5,8 @@
 #import the necessary packages
 import cv2
 import numpy as np
+import time
+
 #'optional' argument is required for trackbar creation parameters
 def nothing(x):
 	pass
@@ -18,7 +20,7 @@ thickness = 1
 
 #Capture video from the stream
 # cap = cv2.VideoCapture(0)
-inputVideo = "PostitNoteTests.avi"
+inputVideo = "Red_3.avi"
 cap = cv2.VideoCapture(inputVideo)
 cv2.namedWindow('Normal')
 cv2.moveWindow('Normal', 700, 0)
@@ -71,8 +73,14 @@ if Playthrough==True:
 img = np.zeros((400,200,3), dtype=np.uint8)
 img.fill(255)
 
+OuterCounter =0
+InnerCounter =0
+print("entering loop")
+time.sleep(1)
 #begin our 'infinite' while loop
 while(1):
+	print("OUTER: {}".format(OuterCounter))
+	OuterCounter+=1
 	#read the streamed frames (we previously named this cap)
 	(grabbed, frame) = cap.read()
 
@@ -84,13 +92,14 @@ while(1):
 	cv2.imshow("Normal", frame)
 
 	while(True):
-
+		print("INNER: {}".format(InnerCounter))
+		InnerCounter+=1
 		# it is common to apply a blur to the frame
 		frame=cv2.GaussianBlur(frame,(5,5),0)
 	
 		#convert from a BGR stream to an HSV stream
 		hsv=cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-
+		print()
 		if Playthrough!=True:
 			#read trackbar positions for each trackbar
 			hul=cv2.getTrackbarPos(hl, wnd)
@@ -100,16 +109,28 @@ while(1):
 			val=cv2.getTrackbarPos(vl, wnd)
 			vah=cv2.getTrackbarPos(vh, wnd)
 
+			if Playthrough == True:
+				k = cv2.waitKey(1) & 0xFF
+				break
+			else: 
+				k = cv2.waitKey(1) & 0xFF
+
 			img2 = img.copy()
 
-			cv2.putText(img2,str(val),(100,20), fontFace, fontScale,(0,0,0),thickness,cv2.LINE_AA)
-			cv2.putText(img2,str(vah),(100,55), fontFace, fontScale,(0,0,0),thickness,cv2.LINE_AA)
 			cv2.putText(img2,str(hul),(100,85), fontFace, fontScale,(0,0,0),thickness,cv2.LINE_AA)
 			cv2.putText(img2,str(huh),(100,115), fontFace, fontScale,(0,0,0),thickness,cv2.LINE_AA)
 			cv2.putText(img2,str(sal),(100,145), fontFace, fontScale,(0,0,0),thickness,cv2.LINE_AA)
 			cv2.putText(img2,str(sah),(100,175), fontFace, fontScale,(0,0,0),thickness,cv2.LINE_AA)
+			cv2.putText(img2,str(val),(100,20), fontFace, fontScale,(0,0,0),thickness,cv2.LINE_AA)
+			cv2.putText(img2,str(vah),(100,55), fontFace, fontScale,(0,0,0),thickness,cv2.LINE_AA)
 
 			cv2.imshow('Values', img2)
+
+		if Playthrough == True:
+			k = cv2.waitKey(1) & 0xFF
+			break
+		else: 
+			k = cv2.waitKey(1) & 0xFF
 
 		#make array for final values
 		HSVLOW=np.array([hul,sal,val])
