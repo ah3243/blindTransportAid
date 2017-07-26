@@ -1,6 +1,11 @@
+###
+##  This is a brief library for working with a vibration motor array
+##  transforming distances into the various PWM motor outputs    
+###
+
 # for exponential transform
 from math import pow
-
+ 
 # main function to handle the different types of feedback
 def getFeedbackVal(distance, leftMin, leftMax, rightMin, rightMax, feedbackType):
     # return PWM value
@@ -53,7 +58,7 @@ def translate(val, oldMax, oldMin, newMax, newMin):
     newValue = (((val - oldMin)/oldSpan)*newSpan) + newMin
     # Figure out how 'wide' each range is
 
-    print("This is the oldMin: {}, oldMax: {}, newMin: {}, newMax: {}, and decimalVal: {}".format(oldMin, oldMax, newMin, newMax, val/oldSpan))
+    # print("This is the oldMin: {}, oldMax: {}, newMin: {}, newMax: {}, and decimalVal: {}".format(oldMin, oldMax, newMin, newMax, val/oldSpan))
 
     # leftSpan = leftP - leftM
     # rightSpan = rightP - rightM
@@ -64,7 +69,7 @@ def translate(val, oldMax, oldMin, newMax, newMin):
     # # Convert the 0-1 range into a value in the right range.
     # newVal = rightM + (valueScaled * rightSpan)
     
-    print("value: {}, Left span: {}, right span: {}, newValue: {}".format(val, oldSpan, newSpan, newValue))
+    # print("value: {}, Left span: {}, right span: {}, newValue: {}".format(val, oldSpan, newSpan, newValue))
 
     return newValue
 

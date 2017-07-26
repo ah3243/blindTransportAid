@@ -43,7 +43,7 @@ def rotaryDeal():
             print('globalCounter = {}'.format(globalCounter))
 
 def clear(ev=None):
-        globalCounter = 0
+    globalCounter = 0
     print('globalCounter = {}'.format(globalCounter))
     time.sleep(1)
 

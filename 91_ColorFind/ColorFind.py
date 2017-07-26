@@ -6,6 +6,7 @@
 import cv2
 import numpy as np
 import time
+import imutils
 
 #'optional' argument is required for trackbar creation parameters
 def nothing(x):
@@ -20,7 +21,8 @@ thickness = 1
 
 #Capture video from the stream
 # cap = cv2.VideoCapture(0)
-inputVideo = "Red_3.avi"
+inputVideo = "3m_800_600_BaseUnderneath.avi"
+
 cap = cv2.VideoCapture(inputVideo)
 cv2.namedWindow('Normal')
 cv2.moveWindow('Normal', 700, 0)
@@ -48,9 +50,18 @@ Pink = [31, 255, 159, 179, 87, 255]
 ## POSTIT NOTES
 # values for pink postit notes
 Postit_Pink = [31, 255, 159, 179, 87, 255]
+# bus number color
+BusNumberWhite = [18, 100, 15, 57, 2, 40]
+#QR code blue
+QRCodeBlue = [19, 170, 93, 134, 34, 255]
+
+QRCodeRed = [19, 170, 93, 134, 34, 255]
+
+OPEN = [0, 255, 0, 180, 0, 255]
+
 
 Cur = [] 
-Cur= Pink
+Cur= OPEN
 
 if Playthrough != True:
 	#Begin Creating trackbars for each
@@ -73,6 +84,9 @@ if Playthrough==True:
 img = np.zeros((400,200,3), dtype=np.uint8)
 img.fill(255)
 
+# the width of the resized image
+ImgW = 600
+
 OuterCounter =0
 InnerCounter =0
 print("entering loop")
@@ -88,6 +102,10 @@ while(1):
 	if not grabbed:
 		break
 
+	# vertial flip==0, horizontal flip == >0, vertical and horizontal flip == <0
+	frame=cv2.flip(frame,-1)
+
+	frame = imutils.resize(frame, width=ImgW)
 
 	cv2.imshow("Normal", frame)
 
@@ -95,7 +113,7 @@ while(1):
 		print("INNER: {}".format(InnerCounter))
 		InnerCounter+=1
 		# it is common to apply a blur to the frame
-		frame=cv2.GaussianBlur(frame,(5,5),0)
+		frame=cv2.GaussianBlur(frame,(1,1),0)
 	
 		#convert from a BGR stream to an HSV stream
 		hsv=cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -114,6 +132,12 @@ while(1):
 				break
 			else: 
 				k = cv2.waitKey(1) & 0xFF
+			if k == ord('n'):
+				break
+			elif k == ord('q'):
+				cv2.destroyAllWindows()
+				exit()
+
 
 			img2 = img.copy()
 
@@ -131,7 +155,12 @@ while(1):
 			break
 		else: 
 			k = cv2.waitKey(1) & 0xFF
-
+		
+		if k == ord('n'):
+			break
+		elif k == ord('q'):
+			cv2.destroyAllWindows()
+			exit()
 		#make array for final values
 		HSVLOW=np.array([hul,sal,val])
 		HSVHIGH=np.array([huh,sah,vah])

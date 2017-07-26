@@ -8,22 +8,25 @@ import time
 from imutils.video import VideoStream
 from imutils.video import FPS
 
-
+ 
 # # Button imports
 import RPi.GPIO as GPIO
 import time
 from datetime import datetime as Tme
 
-GPIO_StartBtn = 6
+GPIO_StartBtn = 27
 GPIO_LED = 26
-GPIO_VibrationMotor = 13
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(GPIO_StartBtn, GPIO.IN, pull_up_down=GPIO.PUD_UP) # start recording or not
 GPIO.setup(GPIO_LED, GPIO.OUT) # LED to show recording
-#GPIO.setup(GPIO_VibrationMotor, GPIO.OUT) # PWM for vibration motor
+# ~12-14FPS (saving video)
+imgW = 1280
+imgH = 920
 
-imgWidth = 800
+# ~
+# imgW = 800
+# imgH = 600
 
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
@@ -41,12 +44,27 @@ if args["display"] == 1:
 
 cnt= 1 # to initialise fps at start of button press
 
+def finish():
+    # do a bit of cleanup
+    print("[INFO] saving video...")
+    vs.stop()
+    writer.release()
+    cv2.destroyAllWindows()
+
+    fps.stop() # calculate fps values
+    # display fps values
+    print("[INFO] elasped time: {:.2f}".format(fps.elapsed()))
+    print("[INFO] approx. FPS: {:.2f}".format(fps.fps()))
+
+    time.sleep(2) # wait for 2 seconds for the video to save    
+
+
 try:
     while(True):
         input_state = GPIO.input(GPIO_StartBtn)
 
         # start loop if button pressed
-        if input_state:
+        if input_state==False:
             print('Button Pressed')
 
             # initialise fps at start of video loop
@@ -59,7 +77,7 @@ try:
             # initialize the video stream and allow the camera
             # sensor to warmup
             print("[INFO] warming up camera...")
-            vs = VideoStream(usePiCamera=1).start()
+            vs = VideoStream(usePiCamera=1, resolution=(imgW, imgH)).start()
             time.sleep(2.0)
 
             # initialize the FourCC, video writer, dimensions of the frame, and
@@ -86,7 +104,7 @@ try:
             # store the image dimensions, initialzie the video writer,
             # and construct the zeros array
             frame = vs.read()
-            frame = imutils.resize(frame, width=imgWidth)
+            frame = imutils.resize(frame, width=imgW)
             (h, w) = frame.shape[:2]
 
             writer = cv2.VideoWriter(vidName, fourcc, defaultFps,
@@ -98,9 +116,9 @@ try:
             while(True):
 
                 # grab the frame from the video stream and resize it to have a
-                # maximum width of 300 pixels
+                # maximum width of x pixels
                 frame = vs.read()
-                frame = imutils.resize(frame, width=imgWidth)
+                frame = imutils.resize(frame, width=imgW)
             
                 writer.write(frame)
                 print("Frame size: {}, shape: {}".format(frame.size, frame.shape))
@@ -112,31 +130,15 @@ try:
                 # cv2.imshow("Output", output)
                 key = cv2.waitKey(1) & 0xFF # give it time to process
             
-                # # if the `q` key was pressed, break from the loop
-                # if key == ord("q"):
-                # 	break
-
                 input_state = GPIO.input(GPIO_StartBtn)
-                if input_state == False:
+                if input_state:
                     print('Button unPressed')
                     break
                 
                 # update the FPS counter
                 fps.update()
 
-            # do a bit of cleanup
-            print("[INFO] saving video...")
-            vs.stop()
-            writer.release()
-            cv2.destroyAllWindows()
-
-            fps.stop() # calculate fps values
-            # display fps values
-            print("[INFO] elasped time: {:.2f}".format(fps.elapsed()))
-            print("[INFO] approx. FPS: {:.2f}".format(fps.fps()))
-
-            time.sleep(2) # wait for 2 seconds for the video to save
-
+            finish()
 
         GPIO.output(GPIO_LED, GPIO.LOW)
 
@@ -145,10 +147,10 @@ try:
         if key == ord("q"):
             break
 except KeyboardInterrupt:  # When 'Ctrl+C' is pressed, the child program destroy() will be  executed.
-    print("Keyboard interupt. Cleaning up GPIO pins and closing.")
-    GPIO.cleanup()
 
-    fps.stop()         # calculate fps values
-    # display fps values
-    print("[INFO] elasped time: {:.2f}".format(fps.elapsed()))
-    print("[INFO] approx. FPS: {:.2f}".format(fps.fps()))
+    print("Keyboard interupt. Cleaning up GPIO pins and closing.")
+    finish()
+
+    GPIO.output(GPIO_LED, GPIO.LOW)
+    GPIO.cleanup()
+    time.sleep(2)
