@@ -1,0 +1,1 @@
+## this is a class which intakes text and is able to transform it into synthesised speach
