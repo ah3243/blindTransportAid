@@ -29,26 +29,21 @@
 import os
 from time import sleep
 
-import RPi.GPIO as GPIO
+mainMenu = ["01_yellow.mp3", "02_red.mp3", "03_orange.mp3", "04_blue.mp3"]
 
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(5, GPIO.IN)
-
-# GPIO.setup(24, GPIO.IN)
-# GPIO.setup(25, GPIO.IN)
-
+count =1
 while True:
-    # if (GPIO.input(23) == False):
-    #     os.system('mpg123 -q binary-language-moisture-evaporators.mp3 &')
+ 
+    print("current track: {}".format(mainMenu[count]))
 
-    # if (GPIO.input(24) == False):
-    #     os.system('mpg123 -q power-converters.mp3 &')
+    target = "mpg123 -C " + mainMenu[count]
+    os.system(target)
 
-    # if(done):  
-    if (GPIO.input(5)== False):
-        print("Inside..")
-        os.system('mpg123 -C hello.mp3')
-        print("sleeping")
-        sleep(1)
+    print("sleeping")
     sleep(1)
+
+    count+=1
+
+    if count ==(len(mainMenu)):
+        count =0
     print("iteration: ")
