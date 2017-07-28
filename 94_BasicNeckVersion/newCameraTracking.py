@@ -47,6 +47,9 @@ import math # to calculate the maximum distance a certain actuator(actuators act
 # module with general functions
 import genUtils
 
+# for audiomenu
+import os
+
 # various imports if running on pi
 if RUNNINGONPI:
     # piCamera imports
@@ -69,8 +72,13 @@ else:
 #--- Definitions ---# 
 
 # image dimensions
+
+# ImgW = 800
+# ImgH = 600
+
 # ImgW = 640
 # ImgH = 480
+
 ImgW = 320
 ImgH = 240
 
@@ -86,8 +94,12 @@ MotorMax = 0
 ### Actuator Initialisation ###
 if ACTUATORSON and RUNNINGONPI:
     # pin numbers
-    pin1 = 13
+    pin1 = 13 # motor1
+    pin3 = 18 # motor2
+    pin4 = 12 # motor3
+
     pin2 = 5 # used for start/stop button
+
     # motor config details
     ACCfreq = 200
 
@@ -111,18 +123,52 @@ if DISPLAY:
     cv2.namedWindow('Normal')
     cv2.moveWindow('Normal', 700, 0)
 
-# HSV values for pink postit notes
-Postit_Pink = [31, 255, 159, 179, 87, 255]
+def setTargetColor(x):
+    global hul
+    global huh
+    global sal
+    global sah
+    global val
+    global vah
 
-Cur = []
-Cur = Postit_Pink
+    hsvVals = {
+    "Black": [0, 255, 0, 20, 0,20], 
+    "White" : [0, 255, 0, 30, 80, 100], 
+    "Yellow" : [25, 219, 18, 43, 59, 255],
+    "Orange" : [4, 21, 49, 255, 44, 255],
+    "Blue" : [0, 253, 69, 124, 40, 255],
+    "Pink" : [159, 179, 87, 255, 31, 255],
+    "Stop": [0,0, 0, 0, 0, 0]
+    }
 
-hul = Cur[2]
-huh = Cur[3]
-sal = Cur[4]
-sah = Cur[5]
-val = Cur[0]
-vah = Cur[1]
+    Cur = hsvVals[x]
+
+    # val = Cur[0]
+    # vah = Cur[1]
+    # hul = Cur[2]
+    # huh = Cur[3]
+    # sal = Cur[4]
+    # sah = Cur[5]
+    
+    hul = Cur[0]
+    huh = Cur[1]
+    sal = Cur[2]
+    sah = Cur[3]
+    val = Cur[4]
+    vah = Cur[5]
+    
+
+# # HSV values for pink postit notes
+# Black = [0, 255, 0, 20, 0,20] # value must be low, hue doesn't matter
+# White = [0, 255, 0, 30, 80, 100] # saturation must be high here, hue again doesn't matter
+# Yellow = [25, 219, 18, 43, 59, 255] # done with yellow/green postit note in shade
+# Orange = [4, 21, 49, 255, 44, 255] # done with orange postit note in shade
+# Blue = [0, 253, 69, 124, 40, 255] # done with a blue postit in shade
+# Pink = [159, 179, 87, 255, 31, 255] # done with a pink postit in shade
+
+
+hul, huh, sal, sah, val, vah = 0, 0, 0, 0, 0, 0
+setTargetColor("Orange")
 
 fps = FPS().start()
 
@@ -133,13 +179,12 @@ RoAPin = 22    # pin11
 RoBPin = 18    # pin12
 RoSPin = 27  # pin13
 
-globalCounter = 0
+## Define Search Area Variables
+SearchRadius = 100 # search radius
 
 flag = 0
 Last_RoB_Status = 0
 Current_RoB_Status = 0
-
-
 
 def setup():
     GPIO.setmode(GPIO.BCM)       # Numbers GPIOs by physical location
@@ -153,8 +198,12 @@ def rotaryDeal():
     global flag
     global Last_RoB_Status
     global Current_RoB_Status
-    global globalCounter
-    globalCounter = 100
+    global SearchRadius
+
+    dialIncrement = 4 # the amoung that the dial will increment the search area by
+    SearchTop = ImgH
+    SearchBottom = 20
+
     Last_RoB_Status = GPIO.input(RoBPin)
 
     while(not GPIO.input(RoAPin)):
@@ -163,48 +212,89 @@ def rotaryDeal():
     if flag == 1:
         flag = 0
         if (Last_RoB_Status == 0) and (Current_RoB_Status == 1):
-            globalCounter = globalCounter + 1
-            print('globalCounter = {}'.format(globalCounter))
+            if (SearchRadius+dialIncrement<SearchTop):
+                SearchRadius = SearchRadius + dialIncrement
+                print('SearchRadius = {}'.format(SearchRadius))
+                countTrack(True)
+            else:
+                print("Search radius too large cant increase")
+
         if (Last_RoB_Status == 1) and (Current_RoB_Status == 0):
-            globalCounter = globalCounter - 1
-            print('globalCounter = {}'.format(globalCounter))
+            if(SearchRadius-dialIncrement>SearchBottom):
+                SearchRadius = SearchRadius - dialIncrement
+                print('SearchRadius = {}'.format(SearchRadius))
+                countTrack(False)
+            else: 
+                print("Search radius too small cant decrease")
 
 def clear(ev=None):
-    globalCounter = 100
-    print('globalCounter = {}'.format(globalCounter))
+    SearchRadius = 100
+    print('SearchRadius = {}'.format(SearchRadius))
     time.sleep(1)
 
 def rotaryClear():
     GPIO.add_event_detect(RoSPin, GPIO.FALLING, callback=clear) # wait for falling
 
+## AudioMenu ##
+mainMenu = [ "Pink", "Orange", "Black", "Stop"]
+extension = ".mp3"
+musicDir = "../Media/Audio/"
+trackCount = 0 #used to track where the user is in the audio menu 
+
+# count which track it is
+def countTrack(direction):
+    global trackCount
+    global mainMenu
+    if direction:
+        trackCount+=1        
+        if trackCount == len(mainMenu):
+            trackCount =0
+    elif(trackCount==0):
+        trackCount = len(mainMenu)-1
+    else:
+        trackCount-=1
+
+    playTrack()
+
+# play the current track
+def playTrack():
+    global trackCount
+    global mainMenu
+    global musicDir
+
+    print("currently track: {}".format(mainMenu[trackCount]))
+
+    target = "mpg123 -C " + musicDir + mainMenu[trackCount] + extension
+    print(target)
+    os.system(target)
+    setTargetColor(mainMenu[trackCount])
 
 # def loop():
-#     global globalCounter
+#     global SearchRadius
 #     while True:
 #         rotaryDeal()
-#		print 'globalCounter = %d' % globalCounter
+#		print 'SearchRadius = %d' % SearchRadius
 
 def destroy():
     print("keyboard interupt cleaning up")
-    GPIO.cleanup()             # Release resource
+    if(ACTUATORSON):    
+        GPIO.cleanup()             # Release resource
+
+    if(DISPLAY):
+        cv2.destroyAllWindows()
+
     fps.stop()         # calculate fps values
 
 ###
 ##
 ###
 
-## Define Search Area Variables
-global SearchRadius 
-SearchRadius = 100 # search radius
-
 count = 0 # to count the number of iterations in the loop
 cont = False # flag for the stop/start button
 
 
 if __name__ == '__main__':     # Program start from here
-    setup()
-
-    global globalCounter
+    setup()    
     try:
         # run the main loop
         while True:
@@ -214,10 +304,13 @@ if __name__ == '__main__':     # Program start from here
                 cont = GPIO.input(pin2)
 
             # continue if buttons pressed(if activated)
-            if cont==False:
+            # if cont==False:
+            if True:
                 if VIDEOSTREAM:
                     frame = vs.read()
                     frame = imutils.resize(frame, width=ImgW)
+                    frame=cv2.flip(frame,-1)
+
                 else:
                     #read the streamed frames (we previously named this cap)
                     (grabbed, frame) = cap.read()
@@ -263,28 +356,38 @@ if __name__ == '__main__':     # Program start from here
                     cY = int(M["m01"] / M["m00"])
                     targetCenter = (cX, cY)
                     
-                    # calculate the distance between the target and centre of the image
-                    Dist = int(dist.euclidean(ImgCentre, targetCenter))
+                    # # calculate the distance between the target and centre of the image
+                    # Dist = int(dist.euclidean(ImgCentre, targetCenter))
 
-                    # scale and invert the distance into a pwm value between 0-70(top 30 reserved for upper)
-                    newVal = int(genUtils.getFeedbackVal(Dist, distMin, distMax, MotorMin, MotorMax, FEEDBACKTYPE))
+                    # calculate the horizontal distance between the target and central vertical line
+                    Dist = int(abs((ImgW/2)- cX))
 
-                    print("The current distance between the target and centre is: {}, this is the translated value: {}".format(Dist, newVal))
+                    if Dist < SearchRadius:
+                        # print("within the bounds of the search radius")
+                        # scale and invert the distance into a pwm value between 0-70(top 30 reserved for upper)
+                        newVal = int(genUtils.getFeedbackVal(Dist, distMin, distMax, MotorMin, MotorMax, FEEDBACKTYPE))
 
-                    # if running on pi then update vibration motor value
-                    if RUNNINGONPI:
-                        PWM_M1.start(newVal)
-                    
-                    if DISPLAY:
-                        # draw circle to frame
-                        cv2.circle(frame, (int(x), int(y)), int(radius),(0, 100, 255), 2)
-                        # draw centre point to frame
-                        cv2.circle(frame, targetCenter, 5, (255, 0, 255), -1)
+                        print("The current distance between the target and centre is: {}, this is the translated value: {}".format(Dist, newVal))
 
-                        # display line from centre to target with width corresponding to distance
-                        lineWidth = int(genUtils.translate(newVal, MotorMin, MotorMax, 20, 1))
-                        cv2.line(frame, ImgCentre, targetCenter, (0,0,255),lineWidth)
+                        # if running on pi then update vibration motor value
+                        if RUNNINGONPI:
+                            PWM_M1.start(newVal)
+                        
+                        if DISPLAY:
+                            # draw circle to frame
+                            cv2.circle(frame, (int(x), int(y)), int(radius),(0, 100, 255), 2)
+                            # draw centre point to frame
+                            cv2.circle(frame, targetCenter, 5, (255, 0, 255), -1)
 
+                            # display line from centre to target with width corresponding to distance
+                            lineWidth = int(genUtils.translate(newVal, MotorMin, MotorMax, 20, 1))
+                            cv2.line(frame, ImgCentre, targetCenter, (0,0,255),lineWidth)
+                    else:
+                        # print("not within the bounds of the search radius")
+
+                        # if no target found then set motor to 0
+                        if RUNNINGONPI:
+                            PWM_M1.start(0)	                        
                 else:
                     # if no target found then set motor to 0
                     if RUNNINGONPI:
@@ -302,10 +405,6 @@ if __name__ == '__main__':     # Program start from here
 
                 # if images displayed and q pressed then exit
                 k = cv2.waitKey(1) & 0xFF
-                if k == ord('q'):
-                    cv2.destroyAllWindows()
-                    destroy()
-                    break
 
                 # if images not displayed then exit after 1000 frames(for testing)
                 count+=1
