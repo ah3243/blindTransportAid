@@ -58,10 +58,10 @@ QRCodeBlue = [19, 170, 93, 134, 34, 255]
 QRCodeRed = [19, 170, 93, 134, 34, 255]
 
 OPEN = [0, 255, 0, 180, 0, 255]
-
+Purple = [36, 189, 172, 179, 26, 251] # the distinctive purple color
 
 Cur = [] 
-Cur= OPEN
+Cur= Purple
 
 if Playthrough != True:
 	#Begin Creating trackbars for each
