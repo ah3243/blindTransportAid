@@ -85,6 +85,9 @@ try:
 
             # # confirm that the purple (bottom line), is a certain size(within a certain range) before proceeding
             purpleLineDems = VisionModule.findPurpleLine(hsv, DISPLAY)
+
+            # keyVal = VisionModule.decodeKey()
+
             ## work out what the arrangement of colors are
                 # find line length and save
                    # find Hue of pixel which is above and perpendicular  to the line 0.8 from the left of line
