@@ -19,7 +19,9 @@ import datetime
 import VisionModule
 import VideoHandlingModule
 import cmdDictionary
- 
+import speakText
+from RPi import GPIO
+
 # ~12-14FPS (saving video)
 # imgW = 1280
 # imgH = 920
@@ -31,6 +33,11 @@ imgH = 600
 ## Flags
 DISPLAY = True
 SAVE = False
+
+## Button press
+sw = 24
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(sw, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 
 if DISPLAY:
@@ -72,7 +79,6 @@ try:
 
             if SAVE:        
                 writer.write(frame)
-    
         
             #convert from a BGR stream to an HSV stream
             hsv=cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -84,9 +90,14 @@ try:
                 key = cv2.waitKey(1) & 0xFF # give it time to process            
 
             # # confirm that the purple (bottom line), is a certain size(within a certain range) before proceeding
-            purpleLineDems = VisionModule.findPurpleLine(hsv, DISPLAY)
+            message = ""
+            message = VisionModule.findColor(hsv, DISPLAY)
 
-            # keyVal = VisionModule.decodeKey()
+            # if button pressed speak the current target key
+            pushBtn = GPIO.input(sw)
+            if pushBtn != 1:
+                print("Button pressed")
+                speakText.speakCurrent(message)
 
             ## work out what the arrangement of colors are
                 # find line length and save
