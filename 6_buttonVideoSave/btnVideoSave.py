@@ -14,19 +14,19 @@ import RPi.GPIO as GPIO
 import time
 from datetime import datetime as Tme
 
-GPIO_StartBtn = 27
+GPIO_StartBtn = 24
 GPIO_LED = 26
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(GPIO_StartBtn, GPIO.IN, pull_up_down=GPIO.PUD_UP) # start recording or not
 GPIO.setup(GPIO_LED, GPIO.OUT) # LED to show recording
 # ~12-14FPS (saving video)
-imgW = 1280
-imgH = 920
+# imgW = 1280
+# imgH = 920
 
 # ~
-# imgW = 800
-# imgH = 600
+imgW = 800
+imgH = 600
 
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
