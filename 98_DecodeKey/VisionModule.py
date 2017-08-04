@@ -7,8 +7,9 @@ import math
 OPEN = [0, 255, 0, 180, 0, 255]
 #target colors
 Purple = [36, 189, 172, 179, 26, 251] # the distinctive purple color
+Purple_Black = [19, 214, 161, 179, 160, 255] # for ~1ft black background dark
 
-Cur = Purple
+Cur = Purple_Black
 ## assign variables
 hul = Cur[2]
 huh = Cur[3]
@@ -16,21 +17,6 @@ sal = Cur[4]
 sah = Cur[5]
 val = Cur[0]
 vah = Cur[1]
-
-def findPurpleLine(frame, DISPLAY):
-    """find the purple line within the image and return length and xy values"""
-    processTime = {}
-    processTime = timeAction(processTime, "start", 0)
-
-    lineDems = {
-        "start": [0,0],
-        "end": [0,0],
-        "length": 0
-        }
-    findColor(frame, DISPLAY)
-
-    timeAction(processTime, "end", "findPurple")
-    return lineDems
 
 
 def findColor(frame, DISPLAY):
@@ -51,9 +37,10 @@ def findColor(frame, DISPLAY):
         # show the frames
         cv2.imshow("Frame2", mask)
         key = cv2.waitKey(1) & 0xFF # give it time to process            
-    findPurpleDems(mask, frame)
+    message = findPurpleDems(mask, frame)
     
-    # res = cv2.bitwise_and(frame,frame, mask =mask)
+    return message
+
 
 def findPurpleDems(mask, frame):
     # find contours
@@ -102,35 +89,35 @@ def findPurpleDems(mask, frame):
 
 
         #### used as a test to check how to get a single pixels HSV value
-        print("This is the box var: {}".format(box))
-        print("This is the y distance: {}".format(box[0][1]))
+        # print("This is the box var: {}".format(box))
+        # print("This is the y distance: {}".format(box[0][1]))
 
         ## Find and decode the keys ##
+
         # calculate the average anchor height(related to key y positions)
         avgHeight = avgAnchorHeight(box)
-        print("This is the avgHeight: {}".format(avgHeight))
+
+        # calculate position of each of four keys
         keyPos = calcKeyPositions(avgHeight, box)
 
+        # get the Hue values of pixel at each key location(save in single 4 digit int)
+        hueVals = getKeyVals(keyPos, frame)
 
-        # cv2.line(frame,(0, keyPos[3][1]),(480, keyPos[3][1]),(255,0,0),10) 
-        # cv2.line(frame,(keyPos[1][0], 0),(keyPos[1][0], 480),(255,0,255),5) 
-        # cv2.line(frame,(keyPos[3][0], 0),(keyPos[3][0], 480),(255,0,0),5) 
+        # retrive string corresponding to key arrangement
+        message = decodeKey(hueVals)
+
 
         # display the keyPos positions
         for i in keyPos :
             # print("This is the hsv of pixel 50,50: {}".format(frame[spotPointx][spotPointy]))
             cv2.circle(frame,(i[0],i[1]), 10, (0,255,255), -1) # yellow
 
-        # hueVals = getKeyVals(keyPos, frame)
-        # message = decodeKey(hueVals)
-
-        # show the rotated start point
-        # cv2.circle(frame,(SX,SY), 10, (0,255,255), -1) # yellow
-        # cv2.circle(frame,(SX1,SY1), 10, (255,255,255), -1) # white
-        # cv2.circle(frame,(SX2,SY2), 10, (0,0,255), -1) # red
-        # cv2.circle(frame,(SX3,SY3), 10, (0,255,0), -1) # green
+        cv2.circle(frame,(keyPos[1][0],keyPos[1][1]), 15, (0,0,0), -1)
+        # print("pixel Loc: {}   pixelValue: {}".format(keyPos[1],frame[keyPos[1][1],keyPos[1][0]]))
 
         cv2.imshow("Frame", frame)
+
+        return message
 
 def findLongRectSide(box):
     """Returns the longest of two sides"""
@@ -248,17 +235,63 @@ def calcKeyPositions(avgHeight, box):
     # get a left and right value 20% in from each side
     leftKey = int(abs(avgLCol+(avgLength*.20)))
     rightKey = int(abs(avgRCol-(avgLength*.20)))
+    
+    # make sure all values are within the image size
+    rightKey = betweenRange(rightKey, 600)
+    leftKey = betweenRange(leftKey, 600)
+    topKey = betweenRange(topKey, 600)
+    btmKey = betweenRange(btmKey, 600)
 
     print("This is the average left col: {}, average right: {}".format(leftKey, rightKey))
-
+    print("This is the average top row: {}, average bottom row: {}".format(topKey, btmKey))
 
     return [(leftKey, topKey), (rightKey, topKey), (leftKey, btmKey), (rightKey, btmKey)]
-    # return leftPos
+
+def betweenRange(input, topRange):
+    """Make sure values dont exceed the image size"""
+    if input >=topRange:
+        return topRange-1
+    else: 
+        return input
 
 def getKeyVals(KeyPos, frame):
     """Return the Hue values from the 4 segments"""    
 
-    pass
+    hueVals = 0
+    counter =1000 # create 4 digit number to hold results
+
+    for i in KeyPos:
+        tmpVal = recogniseHue(frame[i[1]][i[0]][0])
+        hueVals += (counter*tmpVal)
+        counter = counter/10 # save from largest to smallest digit(1000->1)
+ 
+    return hueVals
+
+def recogniseHue(inHue):
+    red = (0, 9)
+    yellow = (16, 33)
+    green = (39, 89) 
+    blue = (96, 129) 
+    purple = (165, 179) # (anchor)
+
+    if(inHue>red[0] and inHue < red[1]):
+        print("It's red")
+        return 1
+    elif(inHue>yellow[0] and inHue < yellow[1]):
+        print("It's yellow")
+        return 2
+    elif(inHue>green[0] and inHue < green[1]):
+        print("It's green")
+        return 3
+    elif(inHue>blue[0] and inHue < blue[1]):
+        print("it's blue")
+        return 4
+    elif(inHue>purple[0] and inHue < purple[1]):
+        print("It's purple")
+        return 5
+    else:
+        print("Error: color not recongised")
+        return False
 
 def decodeKey(inputVal):
     """Find and decode key value"""
@@ -268,10 +301,12 @@ def decodeKey(inputVal):
     # - a number between 1 and 5 denotes the color hue
     dictVals = {
         1111: "all blue",
+        1221: "testValue",
         2222: "all yellow",
         3333: "all green",
         4444: "all red",
         1234:"Hello multicultural world!!",
+        4231: "you finally got it!!!"
     }
     result = dictVals[inputVal]
     print(result)
