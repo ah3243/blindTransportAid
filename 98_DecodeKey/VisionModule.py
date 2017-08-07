@@ -21,8 +21,8 @@ val = Cur[0]
 vah = Cur[1]
 
 
-def findColor(frame, DISPLAY, motor, cmdDict):
-    """initial function, converts the bgr to hsv image and passes to 'findPurpleDems'"""
+def findColor(frame, DISPLAY, MOTOR, motor, cmdDict):
+    """initial function, create HSV range+mask and passes to 'findPurpleDems'"""
     #make array for final values
     HSVLOW=np.array([hul,sal,val])
     HSVHIGH=np.array([huh,sah,vah])
@@ -30,7 +30,7 @@ def findColor(frame, DISPLAY, motor, cmdDict):
     # it is common to apply a blur to the frame
     frame=cv2.GaussianBlur(frame,(5,5),0)
 
-    #create a mask for that range
+    # #create a mask for that range
     mask = cv2.inRange(frame,HSVLOW, HSVHIGH)
     mask = cv2.erode(mask, None, iterations=2)
     mask = cv2.dilate(mask, None, iterations=2)
@@ -39,18 +39,44 @@ def findColor(frame, DISPLAY, motor, cmdDict):
         # show the frames
         cv2.imshow("Frame2", mask)
         key = cv2.waitKey(1) & 0xFF # give it time to process            
-    message = findPurpleDems(mask, frame, DISPLAY, motor, cmdDict)
+    message = findPurpleDems(mask, frame, DISPLAY, MOTOR, motor, cmdDict)
+    
     
     # unless false is returned return message
     if message == False:
-        print("False returned, REturning false: {}\n\n\n".format(message))
+        # print("False returned, REturning false: {}\n\n\n".format(message))
         return False
     else: 
         return message
 
 
-def findPurpleDems(mask, frame, DISPLAY, motor, cmdDict):
-    """main holding function, finds contour, creates best fit box, """
+# def angleDirection(rect, box, point):
+#     """Work out which way to rotate the key sample points"""
+
+#     if box[0][1] > box[1][1]:
+#         angle = abs(rect[2])
+#         print("Returning positive angle: {}".format(angle))
+#         return angle
+#     elif box[0][1] < box[1][1]:
+#         angle = rect[2]
+#         print("Returning negative angle: {}".format(angle))
+#         return angle
+#     else: 
+#         return False
+
+
+# def rotatePoint(origin, point, radians):
+#     """Rotate a point counterclockwise around a given origin by angle in radians"""
+
+#     ox, oy = origin
+#     px, py = point
+
+#     qx = int(ox + math.cos(radians) * (px - ox) - math.sin(radians) * (py - oy))
+#     qy = int(oy + math.sin(radians) * (px - ox) + math.cos(radians) * (py - oy))
+#     return qx, qy
+
+def findPurpleDems(mask, frame, DISPLAY, MOTOR, motor, cmdDict):
+    """main holding function, finds contour, creates best fit box"""
     # find contours
     cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2]
 
@@ -62,9 +88,35 @@ def findPurpleDems(mask, frame, DISPLAY, motor, cmdDict):
         # find the smallest bounding rectangle, it's size position and orientation
 
         #  rect == ((x,y), (width, height), angle)
-        rect = cv2.minAreaRect(contour)            
-
+        rect = cv2.minAreaRect(contour)
         box = cv2.boxPoints(rect)
+        # print("This is what's inside the rect(): {}, width: {} height: {}".format(rect[2], rect[1][0], rect[1][1]))
+
+        # The centre point of the rectangle
+        centX = int(rect[0][0])
+        centY = int(rect[0][1])            
+
+        # rotAngle = angleDirection(rect, box, (centX, centY))
+
+        # if  rotAngle != False:
+        #     rotPoint = rotatePoint((centX, centY), (centX, centY+40), rotAngle)
+        #     cv2.line(frame, (centX, centY), rotPoint, (0,255,0), 10)
+
+        # else:
+        #     print("\n\n\n\n\n Is False\n\n" )
+
+        # font = cv2.FONT_HERSHEY_SIMPLEX
+
+        # cv2.putText(frame,"0",(box[0][0], box[0][1]), font, 2,(255,255,255),4,cv2.LINE_AA)
+        # cv2.putText(frame,"1",(box[1][0], box[1][1]), font, 2,(255,255,255),4,cv2.LINE_AA)
+        # cv2.putText(frame,"2",(box[2][0], box[2][1]), font, 2,(255,255,255),4,cv2.LINE_AA)
+        # cv2.putText(frame,"3",(box[3][0], box[3][1]), font, 2,(255,255,255),4,cv2.LINE_AA)
+        # cv2.line(frame, (lineXL, centY), (lineXR, centY), (0,255,255), 4)
+
+        lineXL = int(centX-50)
+        lineXR = int(centX+50)
+
+
 
         # get the longest top side of the rectangle
         (sta,fin) = findLongRectSide(box)
@@ -84,7 +136,7 @@ def findPurpleDems(mask, frame, DISPLAY, motor, cmdDict):
         # get the anchors bounding box width and height side lengths, rtn false if not correct ratio(only partial anchor detected)
         lineLengths = isFullAnchor(avgHeight, box)
         if not lineLengths:
-            print("Returning False")
+            # print("Returning False")
             return False
 
         # calculate position of each of four keys
@@ -92,9 +144,9 @@ def findPurpleDems(mask, frame, DISPLAY, motor, cmdDict):
 
         # get the Hue values of pixel at each key location(save in single 4 digit int)
         hueVals = getKeyVals(keyPos, frame)
-
+        hueVals = str(int(hueVals))
         # retrive string corresponding to key arrangement
-        message = decodeKey(hueVals, motor, cmdDict)
+        message = decodeKey(hueVals, motor, cmdDict, MOTOR)
 
         ## set the vibration motor to the correct amount based on horizontal distance to target centre
         xVal = int(rect[0][0])
@@ -102,10 +154,10 @@ def findPurpleDems(mask, frame, DISPLAY, motor, cmdDict):
 
         # cv2.circle(frame,(xVal,yVal), 10, (100,0,100), -1)
         dist = distToCentre(frame.shape[1], xVal)
-        print("This is dist to centre: {}".format(dist))
 
         # set the distance
-        motor.setDistance(dist)
+        if MOTOR:
+            motor.setDistance(dist)
 
         # display the keyPos positions
         for i in keyPos :
@@ -118,15 +170,6 @@ def findPurpleDems(mask, frame, DISPLAY, motor, cmdDict):
         cv2.imshow("Frame", frame)
 
         return message
-
-# def rotatePoint(origin, point, radians):
-#     """Rotate a point counterclockwise around a given origin by angle in radians"""
-#     ox, oy = origin
-#     px, py = point
-
-#     qx = ox + math.cos(angle) * (px - ox) - math.sin(angle) * (py - oy)
-#     qy = oy + math.sin(angle) * (px - ox) + math.cos(angle) * (py - oy)
-#     return qx, qy
 
 def findLongRectSide(box):
     """Returns the longest of two sides"""
@@ -202,7 +245,7 @@ def isFullAnchor(avgDems, box):
     lineLengths = []
 
     # acceptable range of ratios between width and height of anchor(height*ratio == width) 
-    ratioRange = [2.8, 3.6] # ideal ratio is 3.5
+    ratioRange = [1.5, 4.9] # ideal ratio is 3.5
 
     # calc length of two sides(identical to other two sides)
     for a in range(2):
@@ -212,6 +255,7 @@ def isFullAnchor(avgDems, box):
 
     # sort the list to seperate the width and length measurements
     lineLengths.sort()
+    print("\nThis is the lineLengths: {}".format(lineLengths))
 
     cBtm = lineLengths[0] *ratioRange[0]
     cTop = lineLengths[0] *ratioRange[1]
@@ -219,6 +263,7 @@ def isFullAnchor(avgDems, box):
     if lineLengths[1]>cBtm and lineLengths[1]<cTop:
         return lineLengths
     else:
+        print("not within range..")
         return False
 
 def getLineLength(pos1, pos2):
@@ -243,11 +288,11 @@ def calcKeyPositions(avgHeight, box):
 
     # calculate the y positions (based on the ratio of 1-1-1 for y values from top to bottom)
     # the conversion values are therefore:
-    BtmRowMultiplier = .2 # go down half to get in the middle of the key (.2 instead of .5 for fine tuning)
+    BtmRowMultiplier = .4 # go down half to get in the middle of the key (.2 instead of .5 for fine tuning)
     btmKey = avgTopRow - (avgHeight*BtmRowMultiplier)
     btmKey = int(btmKey)
 
-    TopRowMultiplier = 1.2 # go down one then half to get in the middle of the key (.2 instead of .5 for fine tuning)
+    TopRowMultiplier = 1.4 # go down one then half to get in the middle of the key (.2 instead of .5 for fine tuning)
     topKey = avgTopRow - (avgHeight*TopRowMultiplier)
     topKey = int(topKey)
 
@@ -268,17 +313,17 @@ def calcKeyPositions(avgHeight, box):
     
     return [(leftKey, topKey), (rightKey, topKey), (leftKey, btmKey), (rightKey, btmKey)]
 
+
 def withinPicture(frame, i):
     """confirms that the sample position is within the frame to prevent errors"""
     ## Note that the frame dimenions are (y,x) while the i coordinates are (x,y)
 
     if (i[0] < 0 or i[1] < 0 ):
         # check that the sample position doesn't contain negative coordinates
-        print("ERROR: sample location below 0, i = {}".format(i))
+        # print("ERROR: sample location below 0, i = {}".format(i))
         return False
     elif(i[0]<frame.shape[1] and i[1]<frame.shape[0]):
     # check that the sample position is within the frame
-        print("The sample locations: {} are smaller than the frame size: {}".format(i, frame.shape))
         return True
 
 def getKeyVals(KeyPos, frame):
@@ -305,12 +350,14 @@ def recogniseHue(inHue):
     # blue = (96, 129) # target = 112
     # purple = (165, 179) # (anchor) # target = 173
 
-    red = (3, 9) # target = 5
+    red = (0, 9) # target = 5
     yellow = (15, 40) # target = 30+-10
     green = (45, 75) # target = 60
-    turquoise = (80, 106) # target = 90
-    blue = (107, 140) # target = 120
+    turquoise = (80, 109) # target = 90
+    blue = (110, 140) # target = 120
     purple = (160, 172) # (anchor) # target = 150(much higher than thought)
+ 
+    # print("This is the hue: {}".format(inHue))
 
     if(inHue>red[0] and inHue < red[1]):
         return 1
@@ -318,15 +365,17 @@ def recogniseHue(inHue):
         return 2
     elif(inHue>green[0] and inHue < green[1]):
         return 3
-    elif(inHue>blue[0] and inHue < blue[1]):
+    elif(inHue>turquoise[0] and inHue < turquoise[1]):
         return 4
-    elif(inHue>purple[0] and inHue < purple[1]):
+    elif(inHue>blue[0] and inHue < blue[1]):
         return 5
+    elif(inHue>purple[0] and inHue < purple[1]):
+        return 6
     else:
-        print("Error: color not recongised")
+        # print("Error: color not recongised")
         return False
 
-def decodeKey(inputVal, motor, cmdDict):
+def decodeKey(inputVal, motor, cmdDict, MOTOR):
     """Find and decode key value"""
 
     ## Dict for pattern to string matching
@@ -337,14 +386,14 @@ def decodeKey(inputVal, motor, cmdDict):
 
     # try and match the key values to saved keys
     try:
-        message = dictVals[inputVal]        
-        result = dictVals[inputVal]
-        print("This is the inputVal: {} and result: {}".format(inputVal, result))
-        return dictVals[inputVal]
+        message = dictVals.get(inputVal)  
+        # print("This is the inputVal: {} and result: {} ".format(inputVal, message))
+        return message
 
     except:
-        print("Exception: unable to find value in command dictionary")
-        motor.setDistance(0)
+        # print("Exception: unable to find value in command dictionary")
+        if MOTOR:
+            motor.setDistance(0)
         return "No target"
 
 ## designed to work out how long something takes to acomplish
