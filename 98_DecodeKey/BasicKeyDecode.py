@@ -12,6 +12,7 @@ import imutils
 import time
 from imutils.video import VideoStream
 from imutils.video import FPS
+from RPi import GPIO
 
 # # Button imports
 # from datetime import datetime as Tme
@@ -20,30 +21,55 @@ import VisionModule
 import VideoHandlingModule
 import cmdDictionary
 import speakText
-from RPi import GPIO
+import motorClass
 
-# ~12-14FPS (saving video)
+# # ~12-14FPS (saving video)
 # imgW = 1280
 # imgH = 920
 
-# ~
-imgW = 800
-imgH = 600
+# # ~
+# imgW = 800
+# imgH = 600
+
+# VGA res
+imgW = 640
+imgH = 480
+
 
 ## Flags
 DISPLAY = True
 SAVE = False
+MOTORS = False
 
 ## Button press
 sw = 24
 GPIO.setmode(GPIO.BCM)
+GPIO.setwarnings(False)
 GPIO.setup(sw, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
+# vibration motor
+motor1 = 13
+pwmFreq = 200
+
+GPIO.setup(motor1, GPIO.OUT)
+# set PWM pins and frequency
+PWM_M1 = GPIO.PWM(motor1, pwmFreq)
+PWM_M1.start(0)
+
+
+## create motor control instance
+motor = motorClass.motorControl(imgW/4)
+print("Motor instance created, this is the motorvalue: {}".format(motor.motorVal))
+
+
+## create commandDictionary instance
+cmdDict = cmdDictionary.cmdDictionary()
+print("Command Dictionary instance created")
+time.sleep(10)
 
 if DISPLAY:
     print("video display activated ")
     cv2.namedWindow("Frame")
-    # cv2.namedWindow("Mask")
 
 cnt= 1 # to initialise fps at start of button press
 try:
@@ -91,28 +117,18 @@ try:
 
             # # confirm that the purple (bottom line), is a certain size(within a certain range) before proceeding
             message = ""
-            message = VisionModule.findColor(hsv, DISPLAY)
+            message = VisionModule.findColor(hsv, DISPLAY, motor, cmdDict)
 
             # if button pressed speak the current target key
             pushBtn = GPIO.input(sw)
             if pushBtn != 1:
+
                 print("Button pressed")
                 speakText.speakCurrent(message)
 
-            ## work out what the arrangement of colors are
-                # find line length and save
-                   # find Hue of pixel which is above and perpendicular  to the line 0.8 from the left of line
-                   # at distances of 0.3 and 0.8 of length of the line
-                # find Hue of pixel which is above and perpendicular  to the line 0.2 from the left of line
-                    # at distances of 0.3 and 0.8 of length of the line
-                # save which colors are in which position as a 4 digit number(each digit being the index of the color found)
-            
-            ## Parse this arrangement into a key value
-                # run it through the cmdDictionary class methods
-            
-            ## use Flite and python to verbalise the value pair to the identified key
-                # send text value to speakText class which generates synthesised speech
-            
+            # if flag is true then activate vibration motor in relation to 
+            if MOTORS:
+                PWM_M1.start(motor.motorVal)
             # update the FPS counter
             fps.update()
 
@@ -124,4 +140,7 @@ except KeyboardInterrupt:  # When 'Ctrl+C' is pressed, the child program destroy
     print("Keyboard interupt. Cleaning up and closing.")
     VideoHandlingModule.finish(vs, fps, SAVE, writer=0)
     cv2.destroyAllWindows()
+
+    GPIO.output(motor1, GPIO.LOW)
+    GPIO.cleanup()
     time.sleep(2)
