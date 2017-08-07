@@ -4,9 +4,9 @@ from time import sleep
 # clk = 17
 # dt = 18
 
+sw = 24
 clk = 12
 dt = 25
-sw = 24
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(clk, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)

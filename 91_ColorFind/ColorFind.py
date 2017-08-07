@@ -21,7 +21,7 @@ thickness = 1
 
 #Capture video from the stream
 # cap = cv2.VideoCapture(0)
-inputVideo = "CloseBlack_WReflection2.avi"
+inputVideo = "5132_BluerPurpleAndOrangerRed.avi"
 
 cap = cv2.VideoCapture(inputVideo)
 cv2.namedWindow('Normal')
@@ -62,6 +62,7 @@ Purple = [36, 189, 172, 179, 26, 251] # the distinctive purple color
 
 Purple_Black = [19, 214, 161, 179, 160, 255] # for ~1ft black background dark
 Purple_White_Black = [19, 214, 161, 179, 100, 255] # for ~1ft black background dark
+
 
 Cur = [] 
 Cur= Purple_White_Black
@@ -111,7 +112,7 @@ while(1):
 	frame = imutils.resize(frame, width=ImgW)
 
 	cv2.imshow("Normal", frame)
-
+	time.sleep(5)
 	while(True):
 		print("INNER: {}".format(InnerCounter))
 		InnerCounter+=1
