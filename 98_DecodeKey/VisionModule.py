@@ -3,13 +3,15 @@ import cv2
 import numpy as np
 import math
 
+
 # values for pink (VL, VH, HL, HH, SL, SH)
 OPEN = [0, 255, 0, 180, 0, 255]
 #target colors
 Purple = [36, 189, 172, 179, 26, 251] # the distinctive purple color
 Purple_Black = [19, 214, 161, 179, 160, 255] # for ~1ft black background dark
+Purple_Black_Day = [19, 255, 161, 179, 160, 255] # for ~1ft black background dark
 
-Cur = Purple_Black
+Cur = Purple_Black_Day
 ## assign variables
 hul = Cur[2]
 huh = Cur[3]
@@ -19,8 +21,8 @@ val = Cur[0]
 vah = Cur[1]
 
 
-def findColor(frame, DISPLAY):
-    """ return the coordinates of a specific color in an image """
+def findColor(frame, DISPLAY, motor, cmdDict):
+    """initial function, converts the bgr to hsv image and passes to 'findPurpleDems'"""
     #make array for final values
     HSVLOW=np.array([hul,sal,val])
     HSVHIGH=np.array([huh,sah,vah])
@@ -37,16 +39,20 @@ def findColor(frame, DISPLAY):
         # show the frames
         cv2.imshow("Frame2", mask)
         key = cv2.waitKey(1) & 0xFF # give it time to process            
-    message = findPurpleDems(mask, frame)
+    message = findPurpleDems(mask, frame, DISPLAY, motor, cmdDict)
     
-    return message
+    # unless false is returned return message
+    if message == False:
+        print("False returned, REturning false: {}\n\n\n".format(message))
+        return False
+    else: 
+        return message
 
 
-def findPurpleDems(mask, frame):
+def findPurpleDems(mask, frame, DISPLAY, motor, cmdDict):
+    """main holding function, finds contour, creates best fit box, """
     # find contours
     cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2]
-
-    rightSide = True
 
     # only continue if there is at least one contour
     if len(cnts) > 0:
@@ -58,44 +64,28 @@ def findPurpleDems(mask, frame):
         #  rect == ((x,y), (width, height), angle)
         rect = cv2.minAreaRect(contour)            
 
-        # print("This is the x {}, y {}".format(x,y))
-        # print("This is the width {}, height {}, angle {}".format(width, height, angle))
-
-
-        # lineStart = int(x-(length/2))
-        # lineEnd = int(x+(length/2))
-        # # print("This is the length {}, height {}, Lstart {}, Lend {}".format(length, height, lineStart, lineEnd))
-
-        # X = int(x)
-        # Y = int(y)
-
         box = cv2.boxPoints(rect)
-        # print("box: {}".format(box[0]))
 
         # get the longest top side of the rectangle
         (sta,fin) = findLongRectSide(box)
 
-        # set value to positive if right side is being detected
-        rightSide = isRightSide((sta,fin))
-
-
-        # (sx, sy) = box[sta]
-        # (ex, ey) = box[fin]
-        # cv2.line(frame,(sx, sy),(ex, ey),(255,0,0),10) 
-        # print("The line dimensions are sta: {} fin: {} ".format(sta, fin))
-
+        # convert box to np array???
         box = np.int0(box)
-        cv2.drawContours(frame,[box], 0, (255, 0, 255), 2)
+    
+        if(DISPLAY):
+            cv2.drawContours(frame,[box], 0, (255, 0, 255), 2)
 
-
-        #### used as a test to check how to get a single pixels HSV value
-        # print("This is the box var: {}".format(box))
-        # print("This is the y distance: {}".format(box[0][1]))
-
+    
         ## Find and decode the keys ##
 
         # calculate the average anchor height(related to key y positions)
         avgHeight = avgAnchorHeight(box)
+
+        # get the anchors bounding box width and height side lengths, rtn false if not correct ratio(only partial anchor detected)
+        lineLengths = isFullAnchor(avgHeight, box)
+        if not lineLengths:
+            print("Returning False")
+            return False
 
         # calculate position of each of four keys
         keyPos = calcKeyPositions(avgHeight, box)
@@ -104,8 +94,18 @@ def findPurpleDems(mask, frame):
         hueVals = getKeyVals(keyPos, frame)
 
         # retrive string corresponding to key arrangement
-        message = decodeKey(hueVals)
+        message = decodeKey(hueVals, motor, cmdDict)
 
+        ## set the vibration motor to the correct amount based on horizontal distance to target centre
+        xVal = int(rect[0][0])
+        yVal = int(rect[0][1])
+
+        # cv2.circle(frame,(xVal,yVal), 10, (100,0,100), -1)
+        dist = distToCentre(frame.shape[1], xVal)
+        print("This is dist to centre: {}".format(dist))
+
+        # set the distance
+        motor.setDistance(dist)
 
         # display the keyPos positions
         for i in keyPos :
@@ -118,6 +118,15 @@ def findPurpleDems(mask, frame):
         cv2.imshow("Frame", frame)
 
         return message
+
+# def rotatePoint(origin, point, radians):
+#     """Rotate a point counterclockwise around a given origin by angle in radians"""
+#     ox, oy = origin
+#     px, py = point
+
+#     qx = ox + math.cos(angle) * (px - ox) - math.sin(angle) * (py - oy)
+#     qy = oy + math.sin(angle) * (px - ox) + math.cos(angle) * (py - oy)
+#     return qx, qy
 
 def findLongRectSide(box):
     """Returns the longest of two sides"""
@@ -160,34 +169,6 @@ def findTopSide(box, longSide):
         # Longside output was (1,2) and (1,2)
         # return secondY
 
-def isRightSide(lineDems):
-    """find out which side of the purple anchor is being detected, return true if it's the right side"""
-
-    ## check wether the pixels on the right of the box are black, if so then return right == true
-    if():
-        return True
-    else:
-        return False
-
-def distToCentre(ImgW, cX):
-    # calculate the horizontal distance between the target and central vertical line
-    Dist = int(abs((ImgW/2)- cX))
-    return Dist
-
-def getXorYVals(box, sortList, xORy):
-    """returns a list of x or y values, sorted or unsorted"""
-    yList = []
-    
-    # create a list of all y values
-    for i in range(4):
-        yList.append(box[i][xORy])
-   
-    # sort the list
-    if sortList:
-        yList.sort()
-
-    return yList
-
 def avgAnchorHeight(box):
     """Work out the average anchor y height"""
     ## find the two largest and two smallest y values
@@ -202,24 +183,73 @@ def avgAnchorHeight(box):
 
     return avgHeight
 
+def getXorYVals(box, sortList, xORy):
+    """returns a list of x or y values, sorted or unsorted"""
+    yList = []
+    
+    # create a list of all xORy values (flag determines which one)
+    for i in range(4):
+        yList.append(box[i][xORy])
+   
+    # sort the list
+    if sortList:
+        yList.sort()
+
+    return yList
+
+def isFullAnchor(avgDems, box):
+    """Check the whole anchor has been identified(by the known ratio of average height to width, rtn true is so otherwise rtn false"""
+    lineLengths = []
+
+    # acceptable range of ratios between width and height of anchor(height*ratio == width) 
+    ratioRange = [2.8, 3.6] # ideal ratio is 3.5
+
+    # calc length of two sides(identical to other two sides)
+    for a in range(2):
+        b = a+1
+
+        lineLengths.append(getLineLength(box[a], box[b]))
+
+    # sort the list to seperate the width and length measurements
+    lineLengths.sort()
+
+    cBtm = lineLengths[0] *ratioRange[0]
+    cTop = lineLengths[0] *ratioRange[1]
+
+    if lineLengths[1]>cBtm and lineLengths[1]<cTop:
+        return lineLengths
+    else:
+        return False
+
+def getLineLength(pos1, pos2):
+    """calculate the straight line distance between two x,y points"""
+    dist = math.sqrt((pos2[0] - pos1[0])**2 + (pos2[1] - pos1[1])**2)  
+    return dist
+
+def distToCentre(ImgW, cX):
+    # calculate the horizontal distance between the target and central vertical line
+    Dist = int(abs((ImgW/2)- cX))
+    return Dist
+
 def calcKeyPositions(avgHeight, box):
     """Work out where the colored key positions should be in relation to the purple locator"""
-    # example sample points
-
+    # Vertical Ratio of points:
+    # (1==1==1) both keys and anchor have an equal vertical size
+    
     ## Calculate the y positions
     # find the anchor top row values(smallest two y values)
     yList = getXorYVals(box, 1, 1)
     avgTopRow = (yList[0]+yList[1])/2
 
-    # calculate the y positions (based on the ratio of 4.5-5-3.5 for y values from top to bottom)
+    # calculate the y positions (based on the ratio of 1-1-1 for y values from top to bottom)
     # the conversion values are therefore:
-    TopRowMultiplier = (5+2)/3.5
-    topKey = avgTopRow - (avgHeight*TopRowMultiplier)
-    topKey = int(topKey)
-
-    BtmRowMultiplier = (2)/3.5
+    BtmRowMultiplier = .2 # go down half to get in the middle of the key (.2 instead of .5 for fine tuning)
     btmKey = avgTopRow - (avgHeight*BtmRowMultiplier)
     btmKey = int(btmKey)
+
+    TopRowMultiplier = 1.2 # go down one then half to get in the middle of the key (.2 instead of .5 for fine tuning)
+    topKey = avgTopRow - (avgHeight*TopRowMultiplier)
+    topKey = int(topKey)
 
     ## calculate the x positions
     # get a sorted list of x positions
@@ -236,23 +266,20 @@ def calcKeyPositions(avgHeight, box):
     leftKey = int(abs(avgLCol+(avgLength*.20)))
     rightKey = int(abs(avgRCol-(avgLength*.20)))
     
-    # make sure all values are within the image size
-    rightKey = betweenRange(rightKey, 600)
-    leftKey = betweenRange(leftKey, 600)
-    topKey = betweenRange(topKey, 600)
-    btmKey = betweenRange(btmKey, 600)
-
-    print("This is the average left col: {}, average right: {}".format(leftKey, rightKey))
-    print("This is the average top row: {}, average bottom row: {}".format(topKey, btmKey))
-
     return [(leftKey, topKey), (rightKey, topKey), (leftKey, btmKey), (rightKey, btmKey)]
 
-def betweenRange(input, topRange):
-    """Make sure values dont exceed the image size"""
-    if input >=topRange:
-        return topRange-1
-    else: 
-        return input
+def withinPicture(frame, i):
+    """confirms that the sample position is within the frame to prevent errors"""
+    ## Note that the frame dimenions are (y,x) while the i coordinates are (x,y)
+
+    if (i[0] < 0 or i[1] < 0 ):
+        # check that the sample position doesn't contain negative coordinates
+        print("ERROR: sample location below 0, i = {}".format(i))
+        return False
+    elif(i[0]<frame.shape[1] and i[1]<frame.shape[0]):
+    # check that the sample position is within the frame
+        print("The sample locations: {} are smaller than the frame size: {}".format(i, frame.shape))
+        return True
 
 def getKeyVals(KeyPos, frame):
     """Return the Hue values from the 4 segments"""    
@@ -261,59 +288,64 @@ def getKeyVals(KeyPos, frame):
     counter =1000 # create 4 digit number to hold results
 
     for i in KeyPos:
-        tmpVal = recogniseHue(frame[i[1]][i[0]][0])
-        hueVals += (counter*tmpVal)
-        counter = counter/10 # save from largest to smallest digit(1000->1)
- 
+        # check that the sample location is within the image, else do not sample
+        if withinPicture(frame, i):
+            tmpVal = recogniseHue(frame[i[1]][i[0]][0])
+            hueVals += (counter*tmpVal)
+            counter = counter/10 # save from largest to smallest digit(1000->1)
+        else:
+            return False
     return hueVals
 
 def recogniseHue(inHue):
-    red = (0, 9)
-    yellow = (16, 33)
-    green = (39, 89) 
-    blue = (96, 129) 
-    purple = (165, 179) # (anchor)
+
+    # red = (0, 9) # target = 4
+    # yellow = (16, 33) # target = 25
+    # green = (39, 89) # target = 55
+    # blue = (96, 129) # target = 112
+    # purple = (165, 179) # (anchor) # target = 173
+
+    red = (3, 9) # target = 5
+    yellow = (15, 40) # target = 30+-10
+    green = (45, 75) # target = 60
+    turquoise = (80, 106) # target = 90
+    blue = (107, 140) # target = 120
+    purple = (160, 172) # (anchor) # target = 150(much higher than thought)
 
     if(inHue>red[0] and inHue < red[1]):
-        print("It's red")
         return 1
     elif(inHue>yellow[0] and inHue < yellow[1]):
-        print("It's yellow")
         return 2
     elif(inHue>green[0] and inHue < green[1]):
-        print("It's green")
         return 3
     elif(inHue>blue[0] and inHue < blue[1]):
-        print("it's blue")
         return 4
     elif(inHue>purple[0] and inHue < purple[1]):
-        print("It's purple")
         return 5
     else:
         print("Error: color not recongised")
         return False
 
-def decodeKey(inputVal):
+def decodeKey(inputVal, motor, cmdDict):
     """Find and decode key value"""
 
     ## Dict for pattern to string matching
     # - segments measured anti clockwise from top left
     # - a number between 1 and 5 denotes the color hue
-    dictVals = {
-        1111: "all blue",
-        1221: "testValue",
-        2222: "all yellow",
-        3333: "all green",
-        4444: "all red",
-        1234:"Hello multicultural world!!",
-        4231: "you finally got it!!!"
-    }
-    result = dictVals[inputVal]
-    print(result)
+    dictVals = {}
+    dictVals = cmdDict.retnDict()
 
-    return dictVals[inputVal]
+    # try and match the key values to saved keys
+    try:
+        message = dictVals[inputVal]        
+        result = dictVals[inputVal]
+        print("This is the inputVal: {} and result: {}".format(inputVal, result))
+        return dictVals[inputVal]
 
-
+    except:
+        print("Exception: unable to find value in command dictionary")
+        motor.setDistance(0)
+        return "No target"
 
 ## designed to work out how long something takes to acomplish
 def timeAction(processTime, cmd, name):
