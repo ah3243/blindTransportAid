@@ -36,16 +36,19 @@ print("This is the args: {}\n\n\n".format(args))
 ###
 
 ## Dimensions
-totHeight = 453 # mm
 totWidth = 528 # mm
+# totHeight = 453 # mm
+totHeight = 604
+
 
 # calculate the segment dimensions
-segmentH = int(totHeight/3)
+# segmentH = int(totHeight/3)
+segmentH = int(totHeight/4)
 segmentW = int(totWidth/2)
 
 
 # current saved dict location
-loc = "../savedDict.json"
+loc = "../98_DecodeKey/savedDict.json"
 
 NUMCOLORS = 6
 # list of target colors RGB =>(BGR)
@@ -57,10 +60,10 @@ colors = {
     # "5":(237,62,103), # purple
 
     "1":(0,68,255), # red
-    "2":(255,0,0), # blue
-    "3":(0,255,255), # yellow
-    "4":(0,255,0), # green
-    "5": (255,255,0), #turquoise
+    "2":(0,255,255), # yellow
+    "3":(0,255,0), # green
+    "4": (255,255,0), #turquoise
+    "5":(255,1,86), # blue
     "6":(255,0,239), # purple
 
 }
@@ -181,19 +184,25 @@ def addKeys(colors, num, frame):
 
     # frame, (topLeft(x,y)), (bottomRight(x,y))
     cv2.rectangle(frame,(0,0),(264,segmentH),(colors[num[0]]),-1)
-    cv2.rectangle(frame,(0,segmentH),(264,int(segmentH*2)),(colors[num[1]]),-1)
-    cv2.rectangle(frame,(264,0),(totWidth,segmentH),(colors[num[2]]),-1)
+    cv2.rectangle(frame,(264,0),(totWidth,segmentH),(colors[num[1]]),-1)
+    cv2.rectangle(frame,(0,segmentH),(264,int(segmentH*2)),(colors[num[2]]),-1)
     cv2.rectangle(frame,(264,segmentH),(totWidth,int(segmentH*2)),(colors[num[3]]),-1)
 
+    # black separator
+    cv2.rectangle(frame,(0,int(segmentH*2)),(totWidth,int(segmentH*2+50)),(0,0,0),-1)
+
     # bottom segment
-    cv2.rectangle(frame,(0,int(segmentH*2)),(totWidth,int(segmentH*3)),(colors["6"]),-1)
+    cv2.rectangle(frame,(0,int(segmentH*2+50)),(totWidth,int(segmentH*3+50)),(colors["6"]),-1)
+
+    # black separator
+    cv2.rectangle(frame,(0,int(segmentH*3+50)),(totWidth,int(segmentH*4)),(0,0,0),-1)
 
     return frame
 
 def addText(text, frame, height, width):
 
     font = cv2.FONT_HERSHEY_SIMPLEX
-    cv2.putText(frame,text,(50, height+95), font, 2,(255,255,255),4,cv2.LINE_AA)
+    cv2.putText(frame,text,(50, frame.shape[0]-95), font, 2,(255,255,255),4,cv2.LINE_AA)
     return frame
 
 
@@ -215,7 +224,7 @@ def writeToFile(location, localDict):
 
 
 def clearDir(location):
-    filelist = [ f for f in os.listdir("keys/") if f.endswith(".png") ]
+    filelist = [ f for f in os.listdir("00_keys/") if f.endswith(".png") ]
 
     for f in filelist:
         imgLoc = location + f
@@ -238,7 +247,7 @@ if(args.get("print", False)):
     print("Printing time!!!\n\n\n")
     
     # clear img directory
-    clearDir("keys/")
+    clearDir("00_keys/")
 
     # recreate all images
     for q in RDict:
@@ -252,7 +261,7 @@ if(args.get("print", False)):
         frame = addText(q, frame, totHeight, totWidth)
         
         ## Save novel VCode image
-        fileName = 'keys/' + q + '.png'
+        fileName = '00_keys/' + q + '.png'
         cv2.imwrite(fileName, frame)
 
 
@@ -288,7 +297,7 @@ elif(args.get("message", False)):
         cv2.waitKey(0)
 
     ## 5. Save novel VCode image
-    fileName = 'keys/' + name + '.png'
+    fileName = '00_keys/' + name + '.png'
     cv2.imwrite(fileName, frame)
 
     ## 6. Save novel VCode to file
