@@ -47,25 +47,26 @@ GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
 GPIO.setup(sw, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-# vibration motor
-motor1 = 13
-pwmFreq = 200
+motor = ""
+if MOTORS:
+    # vibration motor
+    motor1 = 13
+    pwmFreq = 200
 
-GPIO.setup(motor1, GPIO.OUT)
-# set PWM pins and frequency
-PWM_M1 = GPIO.PWM(motor1, pwmFreq)
-PWM_M1.start(0)
+    GPIO.setup(motor1, GPIO.OUT)
+    # set PWM pins and frequency
+    PWM_M1 = GPIO.PWM(motor1, pwmFreq)
+    PWM_M1.start(0)
 
 
-## create motor control instance
-motor = motorClass.motorControl(imgW/4)
-print("Motor instance created, this is the motorvalue: {}".format(motor.motorVal))
+    ## create motor control instance
+    motor = motorClass.motorControl(imgW/4)
+    print("Motor instance created, this is the motorvalue: {}".format(motor.motorVal))
 
 
 ## create commandDictionary instance
 cmdDict = cmdDictionary.cmdDictionary()
 print("Command Dictionary instance created")
-time.sleep(10)
 
 if DISPLAY:
     print("video display activated ")
@@ -84,7 +85,7 @@ try:
         # sensor to warmup
         print("[INFO] Starting camera stream...")
         vs = VideoStream(usePiCamera=1, resolution=(imgW, imgH)).start()
-        time.sleep(2.0)
+        time.sleep(1.0)
     
         if SAVE:
             # store the image dimensions, initialzie the video writer,
@@ -109,15 +110,20 @@ try:
             #convert from a BGR stream to an HSV stream
             hsv=cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
           
-            if DISPLAY:
+            # if DISPLAY:
                 # show the frames
                 # cv2.imshow("Frame", frame)
                 # cv2.imshow("Output", output)
-                key = cv2.waitKey(1) & 0xFF # give it time to process            
+                # key = cv2.waitKey(1) & 0xFF # give it time to process            
 
             # # confirm that the purple (bottom line), is a certain size(within a certain range) before proceeding
             message = ""
-            message = VisionModule.findColor(hsv, DISPLAY, motor, cmdDict)
+            message = VisionModule.findColor(hsv, DISPLAY, MOTORS, motor, cmdDict)
+
+            if message is not False:
+                if message == "bathrooms 5m on right":
+                    print("Incrementing this is the message: {}".format(message))
+                    fps.update()
 
             # if button pressed speak the current target key
             pushBtn = GPIO.input(sw)
@@ -130,7 +136,7 @@ try:
             if MOTORS:
                 PWM_M1.start(motor.motorVal)
             # update the FPS counter
-            fps.update()
+            # fps.update()
 
         VideoHandlingModule.finish(vs, writer, fps, SAVE)
         key = cv2.waitKey(1) & 0xFF
@@ -141,6 +147,8 @@ except KeyboardInterrupt:  # When 'Ctrl+C' is pressed, the child program destroy
     VideoHandlingModule.finish(vs, fps, SAVE, writer=0)
     cv2.destroyAllWindows()
 
-    GPIO.output(motor1, GPIO.LOW)
+    if MOTORS:
+        GPIO.output(motor1, GPIO.LOW)
+
     GPIO.cleanup()
     time.sleep(2)
