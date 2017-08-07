@@ -6,7 +6,7 @@ class cmdDictionary:
 
     codeBook = {}
 
-    loc = "../savedDict.json"
+    loc = "savedDict.json"
 
     def __init__(self):
         # import the current command dictionary
