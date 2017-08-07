@@ -21,7 +21,7 @@ thickness = 1
 
 #Capture video from the stream
 # cap = cv2.VideoCapture(0)
-inputVideo = "5132_BluerPurpleAndOrangerRed.avi"
+inputVideo = "5132_WithBlackDivider.avi"
 
 cap = cv2.VideoCapture(inputVideo)
 cv2.namedWindow('Normal')

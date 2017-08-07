@@ -15,7 +15,7 @@ class motorControl:
     def setMotorVal(self, val):
         """Set the motor value"""
         self.motorVal = val
-        print("This is the new motor value: {}".format(self.motorVal))
+        # print("This is the new motor value: {}".format(self.motorVal))
         pass
 
     def invertVal(self, val):
